@@ -21,13 +21,14 @@ class SimuladorDataset:
     def generar(self):
         # Simulaciones
         df_spo2 = SensorSpO2(self.paciente_id, fase_ela=self.fase_ela,
-                            duration=self.duracion, sampling_rate=self.sampling_rate["spo2"]).simular()
+                             duration=self.duracion, sampling_rate=self.sampling_rate["spo2"]).simular()
         df_resp = SensorRespiracion(self.paciente_id, fase_ela=self.fase_ela,
-                                   duration=self.duracion, sampling_rate=self.sampling_rate["resp"]).simular()
+                                    duration=self.duracion, sampling_rate=self.sampling_rate["resp"]).simular()
         df_imu = SensorIMU(self.paciente_id, fase_ela=self.fase_ela,
-                         duration=self.duracion, sampling_rate=self.sampling_rate["imu"]).simular()
+                           duration=self.duracion, sampling_rate=self.sampling_rate["imu"], activity_period=None,
+                           inmovilidad_period=None).simular()
         df_sueno = SensorSueno(self.paciente_id, fase_ela=self.fase_ela,
-                             duration=self.duracion, sampling_rate=self.sampling_rate["sueno"]).simular()
+                               duration=self.duracion, sampling_rate=self.sampling_rate["sueno"]).simular()
 
         # Etiquetas
         etiquetador = EventLabeler(df_spo2, df_resp, df_imu, df_sueno)

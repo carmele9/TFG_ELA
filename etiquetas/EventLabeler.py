@@ -67,27 +67,45 @@ class EventLabeler:
         """
         Aplica todas las funciones de etiquetado de eventos:
         - Combina hipoxia, hipoventilación, inmovilidad y fragmentación del sueño
-        - Genera un DataFrame con estas etiquetas y una etiqueta global 'empeoramiento'
+        - Genera un DataFrame con una etiqueta global 'empeoramiento'
           que se activa si al menos uno de los eventos individuales está presente.
-
-        Returns:
-            pd.DataFrame: DataFrame con columnas ['timestamp', 'hypoxia', 'hypovent',
-            'immobility', 'fragmented_sleep', 'empeoramiento']
+        Se usa merge_asof para alinear temporalmente los eventos más cercanos.
         """
-        # Base temporal común (usamos el timestamp del sensor SpO2)
-        df = pd.DataFrame({
-            'timestamp': self.spo2['timestamp'],
-        })
 
-        # Etiquetas individuales de eventos clínicos
-        df['hipoxia_sostenida'] = self.label_spo2().values
-        df['hipovent_sostenida'] = self.label_resp().reindex(df.timestamp).fillna(0).values
-        df['inmovilidad_sostenida'] = self.label_imu().reindex(df.timestamp).fillna(0).values
-        df['frag_sueno_sostenido'] = self.label_sueno().reindex(df.timestamp).fillna(0).values
+        # Crear DataFrames individuales con timestamps y etiquetas
+        df_spo2 = self.spo2[['timestamp']].copy()
+        df_spo2['hipoxia_sostenida'] = self.label_spo2()
 
-        # Etiqueta global: empeoramiento si alguno de los eventos ocurre
+        df_resp = self.resp[['timestamp']].copy()
+        df_resp['hipovent_sostenida'] = self.label_resp()
+
+        df_imu = self.imu[['timestamp']].copy()
+        df_imu['inmovilidad_sostenida'] = self.label_imu()
+
+        df_sueno = self.sueno[['timestamp']].copy()
+        df_sueno['frag_sueno_sostenido'] = self.label_sueno()
+
+        # Ordenar por tiempo
+        df_spo2 = df_spo2.sort_values("timestamp")
+        df_resp = df_resp.sort_values("timestamp")
+        df_imu = df_imu.sort_values("timestamp")
+        df_sueno = df_sueno.sort_values("timestamp")
+
+        # Usamos la señal de IMU como base por su mayor resolución
+        df = df_imu.copy()
+
+        # Alinear temporalmente con merge_asof (tolerancia de 1 segundo)
+        df = pd.merge_asof(df, df_spo2, on="timestamp", direction="nearest", tolerance=pd.Timedelta("1s"))
+        df = pd.merge_asof(df, df_resp, on="timestamp", direction="nearest", tolerance=pd.Timedelta("1s"))
+        df = pd.merge_asof(df, df_sueno, on="timestamp", direction="nearest", tolerance=pd.Timedelta("1s"))
+
+        # Rellenar posibles NaN con 0
+        df.fillna(0, inplace=True)
+
+        # Etiqueta global de empeoramiento
         df['empeoramiento'] = (
-            df[['hipoxia_sostenida', 'hipovent_sostenida', 'inmovilidad_sostenida', 'frag_sueno_sostenido']].sum(axis=1) >= 1
+                df[['hipoxia_sostenida', 'hipovent_sostenida', 'inmovilidad_sostenida', 'frag_sueno_sostenido']].sum(
+                    axis=1) >= 1
         ).astype(int)
 
         return df
