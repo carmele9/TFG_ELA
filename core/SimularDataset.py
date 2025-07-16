@@ -57,7 +57,7 @@ class SimuladorDataset:
         # Limpiar columnas repetidas (mismo nombre exacto)
         df_merge = df_merge.loc[:, ~df_merge.columns.duplicated()]
 
-        # Opcional: eliminar columnas paciente_id y fase_ela de sensores con sufijos
+        # Eliminar columnas paciente_id y fase_ela de sensores con sufijos
         cols_to_drop = [col for col in df_merge.columns if col not in ['paciente_id', 'fase_ela', 'timestamp'] and
                         (col.startswith('paciente_id') or col.startswith('fase_ela'))]
         df_merge.drop(columns=cols_to_drop, inplace=True, errors='ignore')
