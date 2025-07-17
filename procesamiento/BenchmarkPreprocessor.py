@@ -1,6 +1,7 @@
 import time
 from memory_profiler import memory_usage
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 class BenchmarkPreprocessor:
@@ -80,26 +81,37 @@ class BenchmarkPreprocessor:
         tiempos = [self.results[lib]['time_sec'] for lib in libs]
         memoria = [self.results[lib]['max_memory_mb'] for lib in libs]
 
-        fig, ax1 = plt.subplots(figsize=(8, 5))
+        x = np.arange(len(libs))
+        width = 0.35
 
-        color_time = 'tab:blue'
-        ax1.set_xlabel('Librería')
-        ax1.set_ylabel('Tiempo (segundos)', color=color_time)
-        bars_time = ax1.bar(libs, tiempos, color=color_time, alpha=0.6, label='Tiempo (s)')
-        ax1.tick_params(axis='y', labelcolor=color_time)
-        ax1.set_ylim(0, max(tiempos) * 1.3)
+        fig, ax = plt.subplots(figsize=(9, 5))
 
-        ax2 = ax1.twinx()
-        color_mem = 'tab:green'
-        ax2.set_ylabel('Memoria (MB)', color=color_mem)
-        bars_mem = ax2.bar(libs, memoria, color=color_mem, alpha=0.6, label='Memoria (MB)', width=0.4)
-        ax2.tick_params(axis='y', labelcolor=color_mem)
-        ax2.set_ylim(0, max(memoria) * 1.3)
-        ax2.bar_label(bars_mem, padding=3, fmt='%.2f')
+        bars_time = ax.bar(x - width / 2, tiempos, width, label='Tiempo (s)', color='tab:blue', alpha=0.7)
+        bars_mem = ax.bar(x + width / 2, memoria, width, label='Memoria (MB)', color='tab:green', alpha=0.7)
 
-        # Añadir etiquetas de tiempo encima de las barras
-        ax1.bar_label(bars_time, padding=3, fmt='%.2f')
+        ax.set_ylabel('Valor')
+        ax.set_title('Comparación de rendimiento entre Pandas y Polars')
+        ax.set_xticks(x)
+        ax.set_xticklabels([lib.capitalize() for lib in libs])
+        ax.legend()
 
-        plt.title('Comparación de rendimiento entre Pandas y Polars')
+        # Etiquetas con desplazamiento personalizado para evitar solapamiento
+        for bar in bars_time:
+            height = bar.get_height()
+            offset = 15 if height > 50 else 3
+            ax.annotate(f'{height:.2f}',
+                        xy=(bar.get_x() + bar.get_width() / 2, height),
+                        xytext=(0, offset),
+                        textcoords="offset points",
+                        ha='center', va='bottom', rotation=90 if height > 50 else 0)
+
+        for bar in bars_mem:
+            height = bar.get_height()
+            ax.annotate(f'{height:.2f}',
+                        xy=(bar.get_x() + bar.get_width() / 2, height),
+                        xytext=(0, 3),
+                        textcoords="offset points",
+                        ha='center', va='bottom')
+
         fig.tight_layout()
         plt.show()

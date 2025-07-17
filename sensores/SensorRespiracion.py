@@ -66,7 +66,7 @@ class SensorRespiracion:
         # Indicador de hipoventilación: respiración superficial y lenta
         evento_hipoventilacion = ((frecuencia_rpm < 10) & (amplitud_instante < 0.8)).astype(int)
 
-        # 6. Evento: respiración superficial prolongada (amplitud reducida < 0.3)
+        # Respiración superficial prolongada (amplitud reducida < 0.3)
         evento_brp = (np.abs(senal_resp) < 0.3).astype(int)
 
         # 6. Crear DataFrame
