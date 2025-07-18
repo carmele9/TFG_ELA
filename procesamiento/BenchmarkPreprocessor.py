@@ -76,7 +76,7 @@ class BenchmarkPreprocessor:
         if not self.results:
             print("No hay resultados para mostrar. Ejecuta run_benchmark() primero.")
             return
-
+        # Obtener los resultados
         libs = list(self.results.keys())
         tiempos = [self.results[lib]['time_sec'] for lib in libs]
         memoria = [self.results[lib]['max_memory_mb'] for lib in libs]
@@ -84,34 +84,53 @@ class BenchmarkPreprocessor:
         x = np.arange(len(libs))
         width = 0.35
 
+        # Colores personalizados para las barras
+        color_tiempo = "#FF7F50"
+        color_memoria = "#6495ED"
+
         fig, ax = plt.subplots(figsize=(9, 5))
+        # Gráfico de barras para tiempos y memoria
+        bars_time = ax.bar(
+            x - width / 2, tiempos, width,
+            label='Tiempo (s)', color=color_tiempo,
+            alpha=0.85, edgecolor="black", linewidth=1
+        )
+        bars_mem = ax.bar(
+            x + width / 2, memoria, width,
+            label='Memoria (MB)', color=color_memoria,
+            alpha=0.85, edgecolor="black", linewidth=1
+        )
 
-        bars_time = ax.bar(x - width / 2, tiempos, width, label='Tiempo (s)', color='tab:blue', alpha=0.7)
-        bars_mem = ax.bar(x + width / 2, memoria, width, label='Memoria (MB)', color='tab:green', alpha=0.7)
-
-        ax.set_ylabel('Valor')
-        ax.set_title('Comparación de rendimiento entre Pandas y Polars')
+        # Personalización del gráfico
+        ax.set_facecolor("#f9f9f9")
+        fig.patch.set_facecolor("#f2f2f2")
+        ax.grid(axis='y', linestyle='--', alpha=0.7)
+        # Etiquetas y título
+        ax.set_ylabel('Valor', fontsize=12, fontweight='bold')
+        ax.set_title('Comparación de rendimiento entre Pandas y Polars',
+                     fontsize=14, fontweight='bold')
         ax.set_xticks(x)
-        ax.set_xticklabels([lib.capitalize() for lib in libs])
-        ax.legend()
+        ax.set_xticklabels([lib.capitalize() for lib in libs], fontsize=11, fontweight='medium')
+        ax.legend(facecolor='white', framealpha=1, edgecolor='lightgray')
 
-        # Etiquetas con desplazamiento personalizado para evitar solapamiento
+        # Etiquetas sobre las barras
         for bar in bars_time:
             height = bar.get_height()
-            offset = 15 if height > 50 else 3
             ax.annotate(f'{height:.2f}',
                         xy=(bar.get_x() + bar.get_width() / 2, height),
-                        xytext=(0, offset),
+                        xytext=(0, 4),
                         textcoords="offset points",
-                        ha='center', va='bottom', rotation=90 if height > 50 else 0)
-
+                        ha='center', va='bottom',
+                        fontsize=10, fontweight='bold')
+        # Anotaciones para las barras de memoria
         for bar in bars_mem:
             height = bar.get_height()
             ax.annotate(f'{height:.2f}',
                         xy=(bar.get_x() + bar.get_width() / 2, height),
-                        xytext=(0, 3),
+                        xytext=(0, 4),
                         textcoords="offset points",
-                        ha='center', va='bottom')
+                        ha='center', va='bottom',
+                        fontsize=10, fontweight='bold')
 
         fig.tight_layout()
         plt.show()

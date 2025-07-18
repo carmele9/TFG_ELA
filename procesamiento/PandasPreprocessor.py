@@ -7,19 +7,11 @@ from sklearn.impute import SimpleImputer
 class PandasPreprocessor:
     """
     Clase de preprocesamiento de datos usando pandas.
-    Realiza imputación, escalado, codificación categórica, y generación de secuencias.
-    Pensada para datos simulados de sensores en pacientes con ELA.
+    Realiza imputación, manejo de outliers, escalado, codificación categórica,
+    y generación de secuencias para datos simulados de sensores en pacientes con ELA.
     """
 
     def __init__(self, df, seq_length=60, step=1):
-        """
-        Inicializa con el DataFrame y parámetros para series temporales.
-
-        Args:
-            df (pd.DataFrame): DataFrame de entrada.
-            seq_length (int): Longitud de la ventana para LSTM.
-            step (int): Paso entre secuencias.
-        """
         self.df = df.copy()
         self.seq_length = seq_length
         self.step = step
@@ -37,6 +29,24 @@ class PandasPreprocessor:
         imputer = SimpleImputer(strategy='mean')
         self.df[num_cols] = imputer.fit_transform(self.df[num_cols])
 
+    def handle_outliers(self):
+        """
+        Detecta y corrige outliers en columnas numéricas usando el rango intercuartílico (IQR).
+        Los valores fuera de [Q1 - 1.5*IQR, Q3 + 1.5*IQR] se recortan al límite permitido.
+        """
+        num_cols = self.df.select_dtypes(include=['float64', 'int64']).columns
+        excluidas = ['fase_ela', 'empeoramiento']  # variables que no se ajustan
+        num_cols = [col for col in num_cols if col not in excluidas]
+
+        for col in num_cols:
+            Q1 = self.df[col].quantile(0.25)
+            Q3 = self.df[col].quantile(0.75)
+            IQR = Q3 - Q1
+            lower_bound = Q1 - 1.5 * IQR
+            upper_bound = Q3 + 1.5 * IQR
+            self.df[col] = np.where(self.df[col] < lower_bound, lower_bound,
+                                    np.where(self.df[col] > upper_bound, upper_bound, self.df[col]))
+
     def encode_categoricals(self):
         """Codifica variables categóricas como 'fase_sueno' y 'estado'."""
         if 'fase_sueno' in self.df.columns:
@@ -46,25 +56,15 @@ class PandasPreprocessor:
             self.df['estado'] = self.label_encoder.fit_transform(self.df['estado'])
 
     def scale_features(self):
-        """
-        Escala variables numéricas entre 0 y 1.
-        No se escalan columnas categóricas ni identificadores.
-        """
+        """Escala variables numéricas entre 0 y 1."""
         excluidas = ['timestamp', 'paciente_id', 'fase_ela', 'estado', 'empeoramiento']
         cols_escalar = [col for col in self.df.columns if col not in excluidas and self.df[col].dtype != 'object']
         self.df[cols_escalar] = self.scaler.fit_transform(self.df[cols_escalar])
 
     def generate_sequences(self):
-        """
-        Crea secuencias tipo LSTM (X, y) por paciente. y = etiqueta de empeoramiento.
-
-        Returns:
-            X (np.array): Secuencias [n_seqs, seq_length, n_features]
-            y (np.array): Etiquetas [n_seqs,]
-        """
+        """Crea secuencias tipo LSTM (X, y) por paciente."""
         features = [col for col in self.df.columns if col not in ['timestamp', 'paciente_id', 'empeoramiento']]
         X, y = [], []
-
         for paciente_id, group in self.df.groupby('paciente_id'):
             group = group.reset_index(drop=True)
             for i in range(0, len(group) - self.seq_length, self.step):
@@ -72,7 +72,6 @@ class PandasPreprocessor:
                 seq_y = group.loc[i+self.seq_length-1, 'empeoramiento']
                 X.append(seq_x)
                 y.append(seq_y)
-
         return np.array(X), np.array(y)
 
     def export(self, path="data_simulada/preprocesado.csv"):
@@ -82,16 +81,10 @@ class PandasPreprocessor:
     def run_all(self, export_path=None, generar_secuencias=False):
         """
         Ejecuta el pipeline de preprocesamiento.
-
-        Args:
-            export_path (str): Ruta opcional para guardar el CSV.
-            generar_secuencias (bool): Si True, devuelve X, y para LSTM.
-
-        Returns:
-            pd.DataFrame o (np.array, np.array): DataFrame preprocesado o secuencias.
         """
         self.parse_timestamp()
         self.handle_missing_values()
+        self.handle_outliers()
         self.encode_categoricals()
         self.scale_features()
 

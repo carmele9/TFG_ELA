@@ -3,11 +3,10 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 from sklearn.impute import SimpleImputer
 
-
 class PolarsPreprocessor:
     """
     Preprocesador de datos usando Polars.
-    Realiza parsing temporal, imputación, codificación, escalado y generación de secuencias.
+    Realiza parsing temporal, imputación, manejo de outliers, codificación, escalado y generación de secuencias.
     Diseñado para datos fisiológicos simulados de pacientes con ELA.
     """
 
@@ -32,6 +31,26 @@ class PolarsPreprocessor:
         np_imputed = imputer.fit_transform(np_array)
         for i, col in enumerate(numeric_cols):
             self.df = self.df.with_columns(pl.Series(name=col, values=np_imputed[:, i]))
+
+    def handle_outliers(self):
+        """
+        Detecta y ajusta outliers en columnas numéricas usando el rango intercuartílico (IQR).
+        Los valores fuera de [Q1 - 1.5*IQR, Q3 + 1.5*IQR] se recortan a dichos límites.
+        """
+        numeric_cols = [col for col in self.df.columns if self.df[col].dtype in [pl.Float64, pl.Int64]]
+        for col in numeric_cols:
+            q1 = self.df[col].quantile(0.25)
+            q3 = self.df[col].quantile(0.75)
+            iqr = q3 - q1
+            lower_bound = q1 - 1.5 * iqr
+            upper_bound = q3 + 1.5 * iqr
+
+            self.df = self.df.with_columns(
+                pl.when(pl.col(col) < lower_bound).then(lower_bound)
+                .when(pl.col(col) > upper_bound).then(upper_bound)
+                .otherwise(pl.col(col))
+                .alias(col)
+            )
 
     def encode_categoricals(self):
         """Codifica variables categóricas como 'fase_sueno' y 'estado'."""
@@ -83,6 +102,7 @@ class PolarsPreprocessor:
         """Ejecuta todo el pipeline."""
         self.parse_timestamp()
         self.handle_missing_values()
+        self.handle_outliers()
         self.encode_categoricals()
         self.scale_features()
 
