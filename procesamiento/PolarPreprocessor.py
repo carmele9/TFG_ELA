@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 from sklearn.impute import SimpleImputer
 
+
 class PolarsPreprocessor:
     """
     Preprocesador de datos usando Polars.

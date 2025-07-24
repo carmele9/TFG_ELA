@@ -91,7 +91,6 @@ class DBSCANModel:
         if epsilon is not None:
             self.eps = epsilon
             print(f"Usando epsilon proporcionado: {self.eps:.4f}")
-
         if self.eps is None and auto_eps:
             print("No se ha definido epsilon. Calculando automáticamente...")
             distances = self.plot_k_distance(auto_eps=True)
