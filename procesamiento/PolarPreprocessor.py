@@ -36,7 +36,7 @@ class PolarsPreprocessor:
     def handle_outliers(self):
         """
         Detecta y ajusta outliers en columnas numéricas usando el rango intercuartílico (IQR).
-        Los valores fuera de [Q1 - 1.5*IQR, Q3 + 1.5*IQR] se recortan a dichos límites.
+        Los valores fueron de [Q1 - 1.5*IQR, Q3 + 1.5*IQR] se recortan a dichos límites.
         """
         numeric_cols = [col for col in self.df.columns if self.df[col].dtype in [pl.Float64, pl.Int64]]
         for col in numeric_cols:
@@ -99,9 +99,30 @@ class PolarsPreprocessor:
         """Guarda el DataFrame preprocesado como CSV."""
         self.df.write_csv(path)
 
-    def run_all(self, export_path=None, generar_secuencias=False):
-        """Ejecuta todo el pipeline."""
+    def run_all(self, export_path=None, generar_secuencias=False, for_autoencoder=False):
+        """Ejecuta todo el pipeline.
+
+        Args:
+            export_path (str, optional): Ruta para exportar CSV. Si None, no exporta.
+            generar_secuencias (bool): Si True, genera y retorna secuencias tipo LSTM.
+            for_autoencoder (bool): Si True, solo hace manejo de outliers, missing y categóricas
+                                    y exporta con nombre especial.
+        """
         self.parse_timestamp()
+
+        if for_autoencoder:
+            self.handle_missing_values()
+            self.handle_outliers()
+            self.encode_categoricals()
+
+            if export_path is None:
+                export_path = "data_simulada/preprocesado_polars_autoencoder.csv"
+            self.export(export_path)
+
+            # Para autoencoder no generamos secuencias (por defecto)
+            return self.df
+
+        # Caso normal completo
         self.handle_missing_values()
         self.handle_outliers()
         self.encode_categoricals()
