@@ -36,10 +36,25 @@ class PolarsPreprocessor:
     def handle_outliers(self):
         """
         Detecta y ajusta outliers en columnas numéricas usando el rango intercuartílico (IQR).
-        Los valores fueron de [Q1 - 1.5*IQR, Q3 + 1.5*IQR] se recortan a dichos límites.
+        Los valores no incluidos en [Q1 - 1.5*IQR, Q3 + 1.5*IQR] se recortan a dichos límites.
+        Se excluyen automáticamente columnas de eventos, etiquetas y deterioro.
         """
+        # Columnas a excluir por nombre
+        exclude_keywords = [
+            "evento", "sostenida", "etiqueta", "empeoramiento"
+        ]
+
+        # Detectar columnas numéricas
         numeric_cols = [col for col in self.df.columns if self.df[col].dtype in [pl.Float64, pl.Int64]]
-        for col in numeric_cols:
+
+        # Filtrar columnas que no contienen las keywords excluidas
+        cols_to_process = [
+            col for col in numeric_cols
+            if not any(keyword in col.lower() for keyword in exclude_keywords)
+        ]
+
+        # Aplicar tratamiento de outliers solo a las columnas permitidas
+        for col in cols_to_process:
             q1 = self.df[col].quantile(0.25)
             q3 = self.df[col].quantile(0.75)
             iqr = q3 - q1
@@ -48,7 +63,8 @@ class PolarsPreprocessor:
 
             self.df = self.df.with_columns(
                 pl.when(pl.col(col) < lower_bound).then(lower_bound)
-                .when(pl.col(col) > upper_bound).then(upper_bound)
+                .when(pl.col(col) > upper_bound)
+                .then(upper_bound)
                 .otherwise(pl.col(col))
                 .alias(col)
             )
@@ -99,30 +115,9 @@ class PolarsPreprocessor:
         """Guarda el DataFrame preprocesado como CSV."""
         self.df.write_csv(path)
 
-    def run_all(self, export_path=None, generar_secuencias=False, for_autoencoder=False):
-        """Ejecuta todo el pipeline.
-
-        Args:
-            export_path (str, optional): Ruta para exportar CSV. Si None, no exporta.
-            generar_secuencias (bool): Si True, genera y retorna secuencias tipo LSTM.
-            for_autoencoder (bool): Si True, solo hace manejo de outliers, missing y categóricas
-                                    y exporta con nombre especial.
-        """
+    def run_all(self, export_path=None, generar_secuencias=False):
+        """Ejecuta el pipeline."""
         self.parse_timestamp()
-
-        if for_autoencoder:
-            self.handle_missing_values()
-            self.handle_outliers()
-            self.encode_categoricals()
-
-            if export_path is None:
-                export_path = "data_simulada/preprocesado_polars_autoencoder.csv"
-            self.export(export_path)
-
-            # Para autoencoder no generamos secuencias (por defecto)
-            return self.df
-
-        # Caso normal completo
         self.handle_missing_values()
         self.handle_outliers()
         self.encode_categoricals()

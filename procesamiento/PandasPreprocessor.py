@@ -33,17 +33,27 @@ class PandasPreprocessor:
         """
         Detecta y corrige outliers en columnas numéricas usando el rango intercuartílico (IQR).
         Los valores fuera de [Q1 - 1.5*IQR, Q3 + 1.5*IQR] se recortan al límite permitido.
+        Se excluyen columnas de eventos, etiquetas, sostenidas y empeoramiento.
         """
-        num_cols = self.df.select_dtypes(include=['float64', 'int64']).columns
-        excluidas = ['fase_ela', 'empeoramiento']  # variables que no se ajustan
-        num_cols = [col for col in num_cols if col not in excluidas]
+        # Palabras clave a excluir
+        exclude_keywords = ['evento', 'sostenida', 'etiqueta', 'empeoramiento']
 
-        for col in num_cols:
+        # Detectar columnas numéricas
+        num_cols = self.df.select_dtypes(include=['float64', 'int64']).columns
+
+        # Excluir columnas por nombre si contienen alguna keyword
+        cols_to_process = [
+            col for col in num_cols
+            if not any(keyword in col.lower() for keyword in exclude_keywords)
+        ]
+
+        for col in cols_to_process:
             Q1 = self.df[col].quantile(0.25)
             Q3 = self.df[col].quantile(0.75)
             IQR = Q3 - Q1
             lower_bound = Q1 - 1.5 * IQR
             upper_bound = Q3 + 1.5 * IQR
+
             self.df[col] = np.where(self.df[col] < lower_bound, lower_bound,
                                     np.where(self.df[col] > upper_bound, upper_bound, self.df[col]))
 

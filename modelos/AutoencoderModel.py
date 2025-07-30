@@ -1,16 +1,16 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score, precision_recall_curve, roc_curve, \
-    auc
+from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, precision_recall_curve
 from tensorflow.keras import Model, Input
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.losses import Huber
 from tensorflow.keras.optimizers import Adam
-import seaborn as sns
 from tensorflow.keras.models import load_model
+import seaborn as sns
 from tensorflow.keras.regularizers import L2
-from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.layers import LeakyReLU, BatchNormalization
 
 
 class AutoencoderModel:
@@ -21,16 +21,29 @@ class AutoencoderModel:
     - Evalúa con métricas como Precision, Recall, F1-score y AUC.
     """
 
-    def __init__(self, df, encoding_dim=16, learning_rate=0.001):
+    def __init__(self, df, encoding_dim=6, learning_rate=0.001):
         """
         Args:
             df (pd.DataFrame): Dataset de entrada (ya preprocesado y escalado).
             encoding_dim (int): Tamaño de la capa latente.
             learning_rate (float): Tasa de aprendizaje.
         """
+        self.df_original = df.copy()
 
-        # Filtrar y escalar solo las columnas relevantes que estén en el DataFrame
-        self.prepare_data(df)
+        # Variables fisiológicas relevantes para detectar anomalías
+        self.features = [
+            'aceleracion_x', 'aceleracion_y', 'aceleracion_z',
+            'magnitud_movimiento', 'actividad_estimada',
+            'spo2', 'frecuencia_cardiaca', 'pulsatility_index',
+            'senal_respiratoria', 'frecuencia_respiratoria',
+            'variabilidad_respiratoria', 'amplitud_instante',
+            'senal_sueno'
+        ]
+
+        # Filtrar solo las columnas relevantes que estén en el DataFrame
+        self.features = [col for col in self.features if col in df.columns]
+        self.df = df[self.features].copy()
+        self.X = self.df.values  # Dataset listo para el modelo
 
         # Hiperparámetros y configuración del modelo
         self.encoding_dim = encoding_dim
@@ -43,90 +56,55 @@ class AutoencoderModel:
 
         print(f"Columnas usadas para el autoencoder: {self.features}")
 
-    def prepare_data(self, df):
-        """
-        Prepara el dataset para el Autoencoder:
-        - Escala las variables fisiológicas relevantes con MinMaxScaler.
-        - Mantiene sin escalar las columnas de eventos.
-        - Genera etiquetas binarias de anomalía según eventos clínicos clave.
-
-        Args:
-            df (pd.DataFrame): Dataset sin escalar, con columnas fisiológicas y eventos.
-        """
-
-        # Features fisiológicas que usa tu modelo, solo si existen en df
-        features_fisio = [
-            'aceleracion_x', 'aceleracion_y', 'aceleracion_z',
-            'magnitud_movimiento', 'actividad_estimada',
-            'spo2', 'frecuencia_cardiaca', 'pulsatility_index',
-            'senal_respiratoria', 'frecuencia_respiratoria',
-            'variabilidad_respiratoria', 'amplitud_instante',
-            'senal_sueno'
-        ]
-        features_fisio = [f for f in features_fisio if f in df.columns]
-
-        # Columnas de eventos relevantes
-        eventos_cols = [
-            'hipoxia_sostenida',
-            'hipovent_sostenido',
-            'inmovilidad_sostenida',
-            'frag_sueno_sostenido',
-            'empeoramiento'
-        ]
-        eventos_cols = [col for col in eventos_cols if col in df.columns]
-        df_fisio = df[features_fisio].copy()
-
-        # Escalar features fisiológicas
-        scaler = MinMaxScaler()
-        scaled_features = scaler.fit_transform(df_fisio)
-        df_scaled_features = pd.DataFrame(scaled_features, columns=features_fisio, index=df.index)
-
-        # Concatenar con eventos sin escalar
-        df_prepared = pd.concat([df_scaled_features, df[eventos_cols]], axis=1)
-
-        # Generar etiquetas binarias: 1 si algún evento > 0, 0 en otro caso
-        y_true = (df[eventos_cols].sum(axis=1) > 0).astype(int).values
-
-        # Guardar atributos en la instancia
-        self.df = df_prepared
-        self.X = df_scaled_features.values  # para el entrenamiento (solo características fisiológicas escaladas)
-        self.y_true = y_true
-        self.features = features_fisio
-
-        print(
-            f"Preparado dataset con {df_prepared.shape[1]} columnas: {len(features_fisio)} fisiológicas escaladas + {len(eventos_cols)} eventos sin escala.")
-        print(f"Etiquetas generadas con {y_true.sum()} anomalías (1) y {len(y_true) - y_true.sum()} normales (0).")
-
     def build_model(self):
-        """Construye un modelo de autoencoder optimizado."""
+        """Construye un modelo de autoencoder optimizado con arquitectura profunda y activaciones LeakyReLU."""
         input_dim = self.X.shape[1]
         input_layer = Input(shape=(input_dim,))
 
         # Encoder
-        encoded = Dense(64, activation='relu', kernel_regularizer=L2(1e-5))(input_layer)
-        encoded = Dropout(0.2)(encoded)
-        encoded = Dense(32, activation='relu', kernel_regularizer=L2(1e-5))(encoded)
-        bottleneck = Dense(self.encoding_dim, activation='relu', kernel_regularizer=L2(1e-5))(encoded)
+        encoded = Dense(128, kernel_regularizer=L2(1e-5))(input_layer)
+        encoded = BatchNormalization()(encoded)
+        encoded = LeakyReLU(negative_slope=0.1)(encoded)
+        encoded = Dropout(0.3)(encoded)
 
-        # Decoder
-        decoded = Dense(32, activation='relu', kernel_regularizer=L2(1e-5))(bottleneck)
-        decoded = Dropout(0.2)(decoded)
-        decoded = Dense(64, activation='relu', kernel_regularizer=L2(1e-5))(decoded)
-        output_layer = Dense(input_dim, activation='sigmoid')(decoded)
+        encoded = Dense(64, kernel_regularizer=L2(1e-5))(encoded)
+        encoded = BatchNormalization()(encoded)
+        encoded = LeakyReLU(negative_slope=0.1)(encoded)
+
+        encoded = Dense(32, kernel_regularizer=L2(1e-5))(encoded)
+        encoded = BatchNormalization()(encoded)
+        encoded = LeakyReLU(negative_slope=0.1)(encoded)
+
+        bottleneck = Dense(self.encoding_dim, kernel_regularizer=L2(1e-5))(encoded)
+        bottleneck = LeakyReLU(negative_slope=0.1)(bottleneck)
+        bottleneck = Dropout(0.3)(bottleneck)
+
+        # Decoder (espejo del encoder)
+        decoded = Dense(32, kernel_regularizer=L2(1e-5))(bottleneck)
+        decoded = BatchNormalization()(decoded)
+        decoded = LeakyReLU(negative_slope=0.1)(decoded)
+        decoded = Dropout(0.3)(decoded)
+
+        decoded = Dense(64, kernel_regularizer=L2(1e-5))(decoded)
+        decoded = BatchNormalization()(decoded)
+        decoded = LeakyReLU(negative_slope=0.1)(decoded)
+        decoded = Dropout(0.3)(decoded)
+
+        decoded = Dense(128, kernel_regularizer=L2(1e-5))(decoded)
+        decoded = BatchNormalization()(decoded)
+        decoded = LeakyReLU(negative_slope=0.1)(decoded)
+
+        # Salida
+        output_layer = Dense(input_dim, activation='linear')(decoded)
 
         # Compilación
         self.model = Model(inputs=input_layer, outputs=output_layer)
-        self.model.compile(optimizer=Adam(learning_rate=self.learning_rate), loss='mse')
+        self.model.compile(optimizer=Adam(learning_rate=self.learning_rate), loss=Huber(delta=1.0))
         print(self.model.summary())
 
     def train(self, epochs=50, batch_size=256, validation_split=0.1):
-        """Entrena el autoencoder. Utiliza EarlyStopping para evitar sobreajuste.
-        Args:
-            epochs (int): Número de épocas para el entrenamiento.
-            batch_size (int): Tamaño del lote.
-            validation_split (float): Porcentaje de datos para validación.
-        """
-        early_stop = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+        """Entrena el autoencoder. Utiliza EarlyStopping para evitar sobreajuste."""
+        early_stop = EarlyStopping(monitor='val_loss', patience=15, restore_best_weights=True, verbose=1, min_delta=1e-4)
         self.history = self.model.fit(
             self.X, self.X,
             epochs=epochs,
@@ -137,21 +115,22 @@ class AutoencoderModel:
         )
         self.plot_training()
 
-    def save_model(self, path="autoencoder_model.h5"):
+    def save_model(self, path="autoencoder_model.keras"):
         """
-        Guarda el modelo de autoencoder entrenado en un archivo .h5.
+        Guarda el modelo de autoencoder entrenado en el formato nativo de Keras (.keras).
+
         Args:
             path (str): Ruta donde guardar el modelo.
         """
         if self.model is None:
             print("No hay modelo entrenado para guardar.")
         else:
-            self.model.save(path)
+            self.model.save(path)  # Formato .keras detectado automáticamente
             print(f"Modelo guardado en: {path}")
 
-    def load_model(self, path="autoencoder_model.h5"):
+    def load_model(self, path="autoencoder_model.keras"):
         """
-        Carga un modelo de autoencoder desde un archivo.h5.
+        Carga un modelo de autoencoder desde un archivo.keras.
         Args:
             path (str): Ruta del archivo.h5 a cargar.
         """
@@ -170,56 +149,17 @@ class AutoencoderModel:
         plt.grid(True, linestyle="--", alpha=0.6)
         plt.show()
 
-    def optimize_threshold(self, true_labels, metric="f1", thresholds=100):
-        """
-        Encuentra el umbral óptimo para las anomalías maximizando una métrica (por defecto F1-score).
-        Args:
-            true_labels (array-like): Etiquetas reales (0 = normal, 1 = anomalía).
-            metric (str): Métrica a optimizar: 'f1', 'precision' o 'recall'.
-            thresholds (int): Número de puntos de umbral a evaluar entre min y max de errores.
-        """
-        if self.reconstruction_errors is None:
-            # Si aún no se han calculado los errores, calcularlos primero
-            self.detect_anomalies(threshold=None)
-
-        errors = self.reconstruction_errors
-        min_err, max_err = errors.min(), errors.max()
-        candidate_thresholds = np.linspace(min_err, max_err, thresholds)
-
-        best_threshold = None
-        best_score = -1
-
-        for th in candidate_thresholds:
-            preds = (errors > th).astype(int)
-            if metric == "f1":
-                score = f1_score(true_labels, preds, zero_division=0)
-            elif metric == "precision":
-                score = precision_score(true_labels, preds, zero_division=0)
-            elif metric == "recall":
-                score = recall_score(true_labels, preds, zero_division=0)
-            else:
-                raise ValueError("Métrica no soportada. Usa 'f1', 'precision' o 'recall'.")
-
-            if score > best_score:
-                best_score = score
-                best_threshold = th
-
-        return best_threshold, best_score
-
-    def detect_anomalies(self, threshold=None):
+    def detect_anomalies(self, threshold=None, percentile=90):
         """
         Detecta anomalías basándonos en el error de reconstrucción.
         Calcula el error de reconstrucción y marca las anomalías según un umbral.
-        Si el umbral es None, se usa el percentil indicado para definirlo automáticamente.
-        Args:
-            threshold (float): Umbral de error. Si None, se usa el percentil indicado.
         """
         reconstructions = self.model.predict(self.X)
         errors = np.mean((self.X - reconstructions) ** 2, axis=1)
         self.reconstruction_errors = errors
 
         if threshold is None:
-            threshold = np.percentile(errors, 95)
+            threshold = np.percentile(errors, percentile)
             print(f"Umbral automático de anomalía: {threshold:.6f}")
 
         anomaly_flags = (errors > threshold).astype(int)
@@ -228,98 +168,82 @@ class AutoencoderModel:
         results['anomaly'] = anomaly_flags
         return results, threshold
 
-    def evaluate(self, true_labels, threshold=None, optimize_metric=None, plot_curves=True):
+    def optimize_threshold(self, true_labels, plot=True):
         """
-        Evalúa el modelo con métricas de clasificación de anomalías.
-        Usa threshold fijo o el percentil 95 si no se da threshold.
-
+        Optimiza el umbral basado en el F1-score máximo usando los errores de reconstrucción.
         Args:
             true_labels (array-like): Etiquetas reales (0 = normal, 1 = anomalía).
-            threshold (float, optional): Umbral para clasificar anomalías.
-            optimize_metric (str, optional): Si se pasa, optimiza el umbral con F1/precision/recall.
-            plot_curves (bool): Si True, dibuja curvas ROC y PR.
+            plot (bool): Sí se desea mostrar la curva precision/recall/F1 vs. threshold.
         """
         if self.reconstruction_errors is None:
-            self.detect_anomalies()
+            reconstructions = self.model.predict(self.X)
+            self.reconstruction_errors = np.mean((self.X - reconstructions) ** 2, axis=1)
 
-        # Umbral
-        if threshold is None:
-            if optimize_metric is not None:
-                threshold, _ = self.optimize_threshold(true_labels, metric=optimize_metric)
-                print(f"Usando umbral optimizado ({optimize_metric.upper()}): {threshold:.6f}")
-            else:
-                threshold = np.percentile(self.reconstruction_errors, 95)
-                print(f"Usando umbral por percentil 95: {threshold:.6f}")
+        precisions, recalls, thresholds = precision_recall_curve(true_labels, self.reconstruction_errors)
+        f1_scores = [2 * (p * r) / (p + r) if (p + r) > 0 else 0 for p, r in zip(precisions, recalls)]
+        best_idx = np.argmax(f1_scores)
+        best_threshold = thresholds[best_idx]
+        best_f1 = f1_scores[best_idx]
 
-        # Predicciones
-        results, _ = self.detect_anomalies(threshold=threshold)
+        if plot:
+            plt.figure(figsize=(10, 6))
+            plt.plot(thresholds, precisions[:-1], label='Precision')
+            plt.plot(thresholds, recalls[:-1], label='Recall')
+            plt.plot(thresholds, f1_scores[:-1], label='F1 Score', linestyle='--')
+            plt.axvline(x=best_threshold, color='red', linestyle=':', label=f'Mejor umbral: {best_threshold:.6f}')
+            plt.xlabel('Umbral de reconstrucción')
+            plt.ylabel('Score')
+            plt.title('Optimización de umbral según F1')
+            plt.legend()
+            plt.grid(True)
+            plt.show()
+
+            print(f"Mejor F1: {best_f1:.4f} con umbral: {best_threshold:.6f}")
+
+        return best_threshold
+
+    def evaluate(self, true_labels, threshold=None, optimize=True):
+        """
+        Evalúa el modelo con métricas de clasificación de anomalías.
+        Args:
+            true_labels (array-like): Etiquetas reales (0 = normal, 1 = anomalía).
+            threshold (float or None): Umbral para clasificar anomalías. Si None y optimize=True, se busca el mejor.
+            optimize (bool): Si es True, busca el umbral que maximiza el F1.
+        """
+        if threshold is None and optimize:
+            threshold = self.optimize_threshold(true_labels, plot=True)
+
+        results, threshold = self.detect_anomalies(threshold)
         y_pred = results['anomaly'].values
-        errors = results['reconstruction_error'].values
 
-        # Métricas
         precision = precision_score(true_labels, y_pred, zero_division=0)
         recall = recall_score(true_labels, y_pred, zero_division=0)
         f1 = f1_score(true_labels, y_pred, zero_division=0)
+        auc = roc_auc_score(true_labels, results['reconstruction_error'])
 
-        # AUC
-        try:
-            auc_score = roc_auc_score(true_labels, errors)
-        except ValueError:
-            auc_score = None
+        print("Métricas de evaluación:")
+        print(f"  Precision: {precision:.4f}")
+        print(f"  Recall: {recall:.4f}")
+        print(f"  F1-score: {f1:.4f}")
+        print(f"  AUC: {auc:.4f}")
+        return {"precision": precision, "recall": recall, "f1": f1, "auc": auc}
 
-        anomalies_detected = int(y_pred.sum())
-        total_samples = len(y_pred)
-        percent_anomalies = 100 * anomalies_detected / total_samples
+    def plot_confusion_matrix(self, true_labels):
+        """
+        Grafica la matriz de confusión para evaluar el rendimiento del modelo.
+        Args:
+            true_labels (array-like): Etiquetas reales (0 = normal, 1 = anomalía).
+        """
+        results, _ = self.detect_anomalies()
+        y_pred = results['anomaly'].values
 
-        # Resumen
-        print("\n=== RESUMEN DE EVALUACIÓN ===")
-        print(f"Total de muestras: {total_samples}")
-        print(f"Anomalías detectadas: {anomalies_detected} ({percent_anomalies:.2f}%)")
-        print(f"Umbral usado: {threshold:.6f}")
-        print(f"Precision: {precision:.4f}")
-        print(f"Recall:    {recall:.4f}")
-        print(f"F1-score:  {f1:.4f}")
-        print(f"AUC:       {auc_score if auc_score is not None else 'No definido'}")
-        print("=============================\n")
-
-        if plot_curves and auc_score is not None:
-            self.plot_roc_pr_curves(true_labels, errors)
-
-        return {
-            "precision": precision,
-            "recall": recall,
-            "f1": f1,
-            "auc": auc_score,
-            "threshold": threshold,
-            "anomalies_detected": anomalies_detected
-        }
-
-    def plot_roc_pr_curves(self, true_labels, scores):
-        """Genera curvas ROC y Precision-Recall."""
-        plt.figure(figsize=(12, 5))
-
-        # ROC Curve
-        fpr, tpr, _ = roc_curve(true_labels, scores)
-        roc_auc = auc(fpr, tpr)
-        plt.subplot(1, 2, 1)
-        plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.2f})')
-        plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.title('Curva ROC')
-        plt.legend(loc="lower right")
-        plt.grid(True, linestyle="--", alpha=0.6)
-
-        # Precision-Recall Curve
-        precision, recall, _ = precision_recall_curve(true_labels, scores)
-        plt.subplot(1, 2, 2)
-        plt.plot(recall, precision, color='blue', lw=2)
-        plt.xlabel('Recall')
-        plt.ylabel('Precision')
-        plt.title('Curva Precision-Recall')
-        plt.grid(True, linestyle="--", alpha=0.6)
-
-        plt.tight_layout()
+        cm = confusion_matrix(true_labels, y_pred)
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
+                    xticklabels=['Normal', 'Anomalía'], yticklabels=['Normal', 'Anomalía'])
+        plt.title('Matriz de Confusión')
+        plt.xlabel('Predicción')
+        plt.ylabel('Realidad')
         plt.show()
 
     def plot_error_distribution(self):
