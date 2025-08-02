@@ -65,7 +65,7 @@ class AutoencoderModel:
         encoded = Dense(128, kernel_regularizer=L2(1e-5))(input_layer)
         encoded = BatchNormalization()(encoded)
         encoded = LeakyReLU(negative_slope=0.1)(encoded)
-        encoded = Dropout(0.3)(encoded)
+        encoded = Dropout(0.2)(encoded)
 
         encoded = Dense(64, kernel_regularizer=L2(1e-5))(encoded)
         encoded = BatchNormalization()(encoded)
@@ -76,19 +76,20 @@ class AutoencoderModel:
         encoded = LeakyReLU(negative_slope=0.1)(encoded)
 
         bottleneck = Dense(self.encoding_dim, kernel_regularizer=L2(1e-5))(encoded)
+        bottleneck = BatchNormalization()(bottleneck)
         bottleneck = LeakyReLU(negative_slope=0.1)(bottleneck)
-        bottleneck = Dropout(0.3)(bottleneck)
+        bottleneck = Dropout(0.2)(bottleneck)
 
         # Decoder (espejo del encoder)
         decoded = Dense(32, kernel_regularizer=L2(1e-5))(bottleneck)
         decoded = BatchNormalization()(decoded)
         decoded = LeakyReLU(negative_slope=0.1)(decoded)
-        decoded = Dropout(0.3)(decoded)
+        decoded = Dropout(0.2)(decoded)
 
         decoded = Dense(64, kernel_regularizer=L2(1e-5))(decoded)
         decoded = BatchNormalization()(decoded)
         decoded = LeakyReLU(negative_slope=0.1)(decoded)
-        decoded = Dropout(0.3)(decoded)
+        decoded = Dropout(0.2)(decoded)
 
         decoded = Dense(128, kernel_regularizer=L2(1e-5))(decoded)
         decoded = BatchNormalization()(decoded)
