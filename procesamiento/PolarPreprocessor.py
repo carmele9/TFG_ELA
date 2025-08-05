@@ -97,7 +97,13 @@ class PolarsPreprocessor:
             X (np.array): Secuencias [n_seqs, seq_length, n_features]
             y (np.array): Etiquetas [n_seqs,]
         """
-        features = [col for col in self.df.columns if col not in ['timestamp', 'paciente_id', 'empeoramiento']]
+        exclude_cols = ['timestamp', 'paciente_id', 'empeoramiento']
+        exclude_keywords = ['etiqueta', 'sostenida']
+        features = [
+            col for col in self.df.columns
+            if col not in exclude_cols and
+               not any(kw in col.lower() for kw in exclude_keywords)
+        ]
         X, y = [], []
 
         for paciente_id in self.df['paciente_id'].unique().to_list():

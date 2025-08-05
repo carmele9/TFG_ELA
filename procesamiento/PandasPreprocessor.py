@@ -74,12 +74,19 @@ class PandasPreprocessor:
     def generate_sequences(self):
         """Crea secuencias tipo LSTM (X, y) por paciente."""
         features = [col for col in self.df.columns if col not in ['timestamp', 'paciente_id', 'empeoramiento']]
+        exclude_cols = ['timestamp', 'paciente_id', 'empeoramiento']
+        exclude_keywords = ['etiqueta', 'sostenida']
+        features = [
+            col for col in self.df.columns
+            if col not in exclude_cols and
+               not any(kw in col.lower() for kw in exclude_keywords)
+        ]
         X, y = [], []
         for paciente_id, group in self.df.groupby('paciente_id'):
             group = group.reset_index(drop=True)
             for i in range(0, len(group) - self.seq_length, self.step):
-                seq_x = group.loc[i:i+self.seq_length-1, features].values
-                seq_y = group.loc[i+self.seq_length-1, 'empeoramiento']
+                seq_x = group.loc[i:i + self.seq_length - 1, features].values
+                seq_y = group.loc[i + self.seq_length - 1, 'empeoramiento']
                 X.append(seq_x)
                 y.append(seq_y)
         return np.array(X), np.array(y)
