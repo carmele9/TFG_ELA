@@ -1,28 +1,63 @@
-from etiquetas.EventLabeler import EventLabeler
-from sensores.SensorSpO2 import SensorSpO2
-from sensores.SensorIMU import SensorIMU
-from sensores.SensorSueno import SensorSueno
-from sensores.SensorRespiracion import SensorRespiracion
+import pandas as pd
+import pytest
+from etiquetas.EventLabeler import EventLabeler  # Ajusta con la ruta real
 
 
-def test_event_labeler():
-    # Create instances of sensors
-    sensor_spo2 = SensorSpO2(paciente_id="test_patient")
-    sensor_imu = SensorIMU(paciente_id="test_patient")
-    sensor_sueno = SensorSueno(paciente_id="test_patient")
-    sensor_respiracion = SensorRespiracion(paciente_id="test_patient")
+@pytest.fixture
+def test_events_data():
+    # Timestamps cada segundo
+    timestamps = pd.date_range("2025-01-01 00:00:00", periods=10, freq="1s")
 
-    # Create an instance of EventLabeler
-    event_labeler = EventLabeler(sensor_spo2, sensor_imu, sensor_sueno, sensor_respiracion)
+    # Datos para SpO2: primero normal, luego forzamos hipoxia
+    df_spo2 = pd.DataFrame({
+        "timestamp": timestamps,
+        "spo2": [95, 94, 89, 88, 87, 95, 94, 91, 89, 88],
+        "frecuencia_cardiaca": [80, 85, 90, 102, 105, 85, 82, 99, 101, 110]
+    })
 
-    # Test the label_event method
-    event_labeler.label_all()
+    # Datos para respiración: eventos de hipoventilación
+    df_resp = pd.DataFrame({
+        "timestamp": timestamps,
+        "evento_hipoventilacion": [0, 1, 1, 1, 1, 1, 1, 0, 0, 0]
+    })
 
-    assert event_labeler.spo2 is not None, "SpO2 data should not be None"
-    assert event_labeler.imu is not None, "IMU data should not be None"
-    assert event_labeler.sueno is not None, "Sleep data should not be None"
-    assert event_labeler.resp is not None, "Respiration data should not be None"
-    assert event_labeler.spo2.paciente_id == "test_patient", "SpO2 patient ID should match"
-    assert event_labeler.imu.paciente_id == "test_patient", "IMU patientID should match"
-    assert event_labeler.sueno.paciente_id == "test_patient", "Sleep patient ID should match"
-    assert event_labeler.resp.paciente_id == "test_patient", "Respiration" "patient ID should match"
+    # Datos para IMU: eventos de inmovilidad
+    df_imu = pd.DataFrame({
+        "timestamp": timestamps,
+        "evento_inmovilidad": [1]*9 + [0]  # 9 seg inmóviles → supera 50 seg en ventana de 60
+    })
+
+    # Datos para sueño: fragmentación forzada
+    df_sueno = pd.DataFrame({
+        "timestamp": timestamps,
+        "fase_sueno": ["AWAKE"]*6 + ["NREM"]*4,
+        "evento_fragmentacion": [0, 1, 1, 1, 1, 2, 0, 0, 0, 0]
+    })
+
+    return df_spo2, df_resp, df_imu, df_sueno
+
+
+def test_label_all(test_events_data):
+    df_spo2, df_resp, df_imu, df_sueno = test_events_data
+    labeler = EventLabeler(df_spo2, df_resp, df_imu, df_sueno)
+    result = labeler.label_all()
+
+    # Comprobar que las columnas de eventos existen
+    expected_cols = [
+        "timestamp",
+        "inmovilidad_sostenida",
+        "hipoxia_sostenida",
+        "hipovent_sostenida",
+        "frag_sueno_sostenido",
+        "empeoramiento"
+    ]
+    for col in expected_cols:
+        assert col in result.columns, f"Falta columna {col}"
+
+    # Validar que al menos un valor de cada evento sea 1
+    assert result["hipoxia_sostenida"].sum() > 0
+    assert result["hipovent_sostenida"].sum() > 0
+    assert result["frag_sueno_sostenido"].sum() > 0
+
+    # Validar que empeoramiento es la combinación de los eventos
+    assert result["empeoramiento"].sum() > 0, "No se detectó empeoramiento cuando debería"

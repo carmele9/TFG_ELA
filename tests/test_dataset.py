@@ -16,5 +16,9 @@ def test_combinacion_sensores(tmp_path):
     assert df.duplicated(subset=["timestamp", "paciente_id"]).sum() == 0
 
     # Tamaño esperado
-    assert df["paciente_id"].nunique() == 2
-
+    assert len(df) == 6000
+    # Valores esperados
+    assert df["paciente_id"].iloc[0] == "PAC_001"
+    assert df["paciente_id"].iloc[599] == "PAC_001"
+    assert df["fase_ela"].iloc[0] == 1
+    assert df["fase_ela"].iloc[599] == 1
