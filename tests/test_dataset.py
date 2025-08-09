@@ -1,6 +1,7 @@
 from core.SimularDataset import SimuladorDataset
 
 
+# Test para verificar la correcta generación y guardado de un dataset simulado
 def test_combinacion_sensores(tmp_path):
     output_csv = tmp_path / "dataset.csv"
     sim = SimuladorDataset(paciente_id="PAC_001", fase_ela=1, duracion=600)

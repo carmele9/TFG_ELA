@@ -4,6 +4,7 @@ from etiquetas.EventLabeler import EventLabeler  # Ajusta con la ruta real
 
 
 @pytest.fixture
+# Datos de prueba para eventos
 def test_events_data():
     # Timestamps cada segundo
     timestamps = pd.date_range("2025-01-01 00:00:00", periods=10, freq="1s")
@@ -37,6 +38,7 @@ def test_events_data():
     return df_spo2, df_resp, df_imu, df_sueno
 
 
+# Test para verificar la correcta etiquetación de eventos
 def test_label_all(test_events_data):
     df_spo2, df_resp, df_imu, df_sueno = test_events_data
     labeler = EventLabeler(df_spo2, df_resp, df_imu, df_sueno)

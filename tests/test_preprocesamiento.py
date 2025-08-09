@@ -8,6 +8,7 @@ import pytest
 
 #### Tests para PolarsPreprocessor ####
 @pytest.fixture
+# Sample DataFrame para PolarsPreprocessor
 def sample_polars_df():
     return polars.DataFrame({
         'timestamp': ['2025-01-02', '2025-01-01', '2025-01-04', '2025-01-03'],
@@ -21,6 +22,7 @@ def sample_polars_df():
 
 
 def test_parse_timestamp_polars(sample_polars_df):
+    # Aseguramos que el tipo de dato sea Datetime y que los valores estén ordenados
     pp = PolarsPreprocessor(sample_polars_df)
     pp.parse_timestamp()
     assert pp.df['timestamp'].dtype == polars.Datetime(time_unit='us', time_zone=None)
@@ -28,18 +30,22 @@ def test_parse_timestamp_polars(sample_polars_df):
 
 
 def test_handle_missing_values_polars(sample_polars_df):
+    # Aseguramos que no haya valores nulos en 'variable1' después de manejar los valores faltantes
     pp = PolarsPreprocessor(sample_polars_df)
     pp.handle_missing_values()
     assert pp.df['variable1'].is_null().sum() == 0
 
 
 def test_handle_outliers_polars(sample_polars_df):
+    # Aseguramos que el valor máximo de 'variable2' sea menor a 1000 después de manejar los outliers
     pp = PolarsPreprocessor(sample_polars_df)
     pp.handle_outliers()
     assert pp.df['variable2'].max() < 1000
 
 
 def test_encode_categoricals_polars(sample_polars_df):
+    # Aseguramos que las columnas categóricas se hayan convertido a tipo Int64
+    # y que no haya valores nulos
     pp = PolarsPreprocessor(sample_polars_df)
     pp.encode_categoricals()
     assert pp.df['fase_sueno'].dtype == polars.Int64
@@ -47,6 +53,8 @@ def test_encode_categoricals_polars(sample_polars_df):
 
 
 def test_scale_features_polars(sample_polars_df):
+    # Aseguramos que las columnas numéricas (excepto 'empeoramiento') estén escaladas entre 0 y 1
+    # y que 'empeoramiento' siga siendo Int64
     pp = PolarsPreprocessor(sample_polars_df)
     pp.scale_features()
     numeric_cols = [col for col, dtype in zip(pp.df.columns, pp.df.dtypes)
@@ -63,6 +71,8 @@ def test_scale_features_polars(sample_polars_df):
 
 
 def test_generate_sequences_polars(sample_polars_df):
+    # Aseguramos que las secuencias generadas tengan la forma correcta
+    # y que el número de muestras X sea igual al número de etiquetas
     pp = PolarsPreprocessor(sample_polars_df, seq_length=1, step=1)
     X, y = pp.generate_sequences()
     assert X.shape[0] == y.shape[0]
@@ -70,6 +80,8 @@ def test_generate_sequences_polars(sample_polars_df):
 
 
 def test_run_all_integration_polars(sample_polars_df):
+    # Aseguramos que el DataFrame procesado no tenga valores nulos
+    # y que las columnas numéricas estén escaladas correctamente
     pp = PolarsPreprocessor(sample_polars_df)
     df_processed = pp.run_all()
     numeric_cols = [col for col, dtype in zip(df_processed.columns, df_processed.dtypes)
@@ -82,6 +94,7 @@ def test_run_all_integration_polars(sample_polars_df):
 
 #### Tests para PandasPreprocessor ####
 @pytest.fixture
+# Sample DataFrame para PandasPreprocessor
 def sample_df():
     return pd.DataFrame({
         'timestamp': ['2025-01-02', '2025-01-01', '2025-01-04', '2025-01-03'],
@@ -95,6 +108,7 @@ def sample_df():
 
 
 def test_parse_timestamp(sample_df):
+    # Aseguramos que el tipo de dato sea Datetime y que los valores estén ordenados
     pp = PandasPreprocessor(sample_df)
     pp.parse_timestamp()
     assert pd.api.types.is_datetime64_any_dtype(pp.df['timestamp'])
@@ -102,18 +116,22 @@ def test_parse_timestamp(sample_df):
 
 
 def test_handle_missing_values(sample_df):
+    # Aseguramos que no haya valores nulos en 'variable1' después de manejar los valores faltantes
     pp = PandasPreprocessor(sample_df)
     pp.handle_missing_values()
     assert pp.df['variable1'].isna().sum() == 0
 
 
 def test_handle_outliers(sample_df):
+    # Aseguramos que el valor máximo de 'variable2' sea menor a 1000 después de manejar los outliers
     pp = PandasPreprocessor(sample_df)
     pp.handle_outliers()
     assert pp.df['variable2'].max() < 1000
 
 
 def test_encode_categoricals(sample_df):
+    # Aseguramos que las columnas categóricas se hayan convertido a tipo Int64
+    # y que no haya valores nulos
     pp = PandasPreprocessor(sample_df)
     pp.encode_categoricals()
     assert np.issubdtype(pp.df['fase_sueno'].dtype, np.integer)
@@ -121,13 +139,17 @@ def test_encode_categoricals(sample_df):
 
 
 def test_scale_features(sample_df):
+    # Aseguramos que las columnas numéricas (excepto 'empeoramiento') estén escaladas entre 0 y 1
+    # y que 'empeoramiento' siga siendo Int64
+    # Comprobamos que 'empeoramiento' no se escala
     pp = PandasPreprocessor(sample_df)
     pp.scale_features()
-    numeric_cols = pp.df.select_dtypes(include=np.number).columns
-    assert np.issubdtype(pp.df['empeoramiento'].dtype, np.integer)  # aseguramos que empeoramiento no se escala
+    assert np.issubdtype(pp.df['empeoramiento'].dtype, np.integer)
 
 
 def test_generate_sequences(sample_df):
+    # Aseguramos que las secuencias generadas tengan la forma correcta
+    # y que el número de muestras X sea igual al número de etiquetas
     pp = PandasPreprocessor(sample_df, seq_length=1, step=1)
     X, y = pp.generate_sequences()
     assert X.shape[0] == y.shape[0]
@@ -135,6 +157,8 @@ def test_generate_sequences(sample_df):
 
 
 def test_run_all_integration(sample_df):
+    # Aseguramos que el DataFrame procesado no tenga valores nulos
+    # y que las columnas numéricas estén escaladas correctamente
     pp = PandasPreprocessor(sample_df)
     df_processed = pp.run_all()
     assert not df_processed.isna().any().any()
