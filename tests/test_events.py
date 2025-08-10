@@ -1,6 +1,6 @@
 import pandas as pd
 import pytest
-from etiquetas.EventLabeler import EventLabeler  # Ajusta con la ruta real
+from etiquetas.EventLabeler import EventLabeler
 
 
 @pytest.fixture
