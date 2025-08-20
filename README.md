@@ -34,8 +34,6 @@ Bibliotecas necesarias:
 - Scikit-learn para la implementación de modelos DBSCAN y HDBSCAN
 - Pandas, Polars, NumPy y Matplotlib para el procesamiento y visualización de datos
 - Matplotlib, Seaborn y Plotly para la visualización de resultados
-- Scipy para el análisis estadístico
-- Statsmodels para el análisis estadístico y econométrico
 
 *Requisitos del Proyecto* 
 <br> Python 3.x 
