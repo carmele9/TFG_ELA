@@ -42,7 +42,12 @@ class SensorIMU:
         self.timestamps = pd.date_range(datetime.now(), periods=len(self.time), freq=f"{int(1000 / sampling_rate)}ms")
 
     def simular(self):
-        # Resto del método igual que antes...
+        """
+        Simula los datos del acelerómetro en 3 ejes (X, Y, Z) y genera un DataFrame con los resultados.
+        Returns:
+            pd.DataFrame: DataFrame con columnas de aceleración en X, Y, Z, magnitud del movimiento,
+                          actividad estimada, evento de inmovilidad y estado (caminar/reposo).
+        """
 
         n = len(self.time)
         active = np.full(n, False)

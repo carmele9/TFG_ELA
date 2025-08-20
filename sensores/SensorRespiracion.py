@@ -30,6 +30,8 @@ class SensorRespiracion:
         """
         Genera una señal simulada de respiración con ruido.
         Devuelve un DataFrame con variables fisiológicas realistas.
+        Returns:
+            pd.DataFrame: DataFrame con la señal respiratoria y variables fisiológicas.
         """
 
         # 1. Parámetros según fase ELA

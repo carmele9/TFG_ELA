@@ -92,12 +92,22 @@ class PandasPreprocessor:
         return np.array(X), np.array(y)
 
     def export(self, path="data_simulada/preprocesado.csv"):
-        """Guarda el DataFrame preprocesado."""
+        """Guarda el DataFrame preprocesado.
+        Args:
+            path (str): Ruta donde se guardará el DataFrame preprocesado.
+        """
         self.df.to_csv(path, index=False)
 
     def run_all(self, export_path=None, generar_secuencias=False):
         """
         Ejecuta el pipeline de preprocesamiento.
+        Si export_path es proporcionado, guarda el DataFrame preprocesado.
+        Si generar_secuencias es True, genera y retorna las secuencias (X,
+        y).
+        Si no, retorna el DataFrame preprocesado.
+        Args:
+            export_path (str): Ruta para guardar el DataFrame preprocesado.
+            generar_secuencias (bool): Si True, genera y retorna las secuencias.
         """
         self.parse_timestamp()
         self.handle_missing_values()

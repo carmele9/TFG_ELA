@@ -24,6 +24,15 @@ class SensorSpO2:
         """
         Genera una señal simulada de SpO2 y frecuencia cardíaca con realismo fisiológico.
         Devuelve un DataFrame con las variables simuladas.
+        Returns:
+            pd.DataFrame: DataFrame con las columnas:
+                - timestamp: Marca de tiempo de la medición.
+                - paciente_id: ID del paciente.
+                - fase_ela: Fase del ELA (1, 2 o 3).
+                - spo2: Nivel de SpO2 simulado.
+                - frecuencia_cardiaca: Frecuencia cardíaca simulada.
+                - pulsatility_index: Índice de pulsatilidad simulado.
+                - evento_hipoxia: Evento de hipoxia (1 si SpO2 < 90%, 0 en caso contrario).
         """
         # 1. Valor base por fase ELA (SpO2)
         if self.fase_ela == 1:

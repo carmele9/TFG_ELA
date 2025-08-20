@@ -30,6 +30,9 @@ class SensorSueno:
         """
         Genera señales sintéticas que simulan patrones de sueño por fases.
         Devuelve un DataFrame con etiquetas de fase y variables derivadas.
+        Devuelve:
+            pd.DataFrame: DataFrame con columnas 'timestamp', 'paciente_id', 'fase_ela',
+                          'senal_sueno', 'fase_sueno', 'evento_fragmentacion'.
         """
 
         # Parámetros de fases: freqs y amps simuladas para cada etapa

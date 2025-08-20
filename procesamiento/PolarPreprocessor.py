@@ -118,11 +118,18 @@ class PolarsPreprocessor:
         return np.array(X), np.array(y)
 
     def export(self, path="data_simulada/preprocesado_polars.csv"):
-        """Guarda el DataFrame preprocesado como CSV."""
+        """Guarda el DataFrame preprocesado como CSV.
+        Args:
+            path (str): Ruta para guardar el DataFrame preprocesado.
+        """
         self.df.write_csv(path)
 
     def run_all(self, export_path=None, generar_secuencias=False):
-        """Ejecuta el pipeline."""
+        """Ejecuta el pipeline.
+        Args:
+            export_path (str): Ruta para guardar el DataFrame preprocesado.
+            generar_secuencias (bool): Si True, genera secuencias tipo LSTM.
+        """
         self.parse_timestamp()
         self.handle_missing_values()
         self.handle_outliers()
