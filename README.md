@@ -1,4 +1,5 @@
-# TFG - Análisis de Datos de Sensores Fisiológicos para la Detección de Empeoramientos en Pacientes con Esclerosis Amiotrófica Lateral
+# TFG - SISTEMA INTELIGENTE PARA LA DETECCIÓN ANTICIPADA DE EVENTOS CRÍTICOS EN PACIENTES CON ELA MEDIANTE INTELIGENCIA ARTIFICIAL APLICADA A DATOS FISIOLÓGICOS SIMULADOS
+
 
 # Descripción del Proyecto
 Este proyecto de Trabajo de Fin de Grado (TFG) se centra en el análisis de datos de sensores fisiológicos utilizados en el campo de la salud, específicamente para pacientes con Esclerosis Amiotrófica Lateral (ELA). El objetivo principal es desarrollar modelos de aprendizaje automático para la detección y clasificación de eventos de empeoramientos a partir de datos simulados de sensores fisiológicos. Se implementan diferentes enfoques de modelado, incluyendo modelos LSTM (Long Short-Term Memory), DBSCAN, HDBSCAN y Autoencoders, para evaluar su rendimiento en la identificación de estos eventos críticos.
