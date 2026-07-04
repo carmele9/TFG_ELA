@@ -13,3 +13,4 @@ kneed
 ipykernel
 memory_profiler
 pyarrow
+joblib

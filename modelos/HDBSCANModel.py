@@ -17,7 +17,7 @@ class HDBSCANModel:
     - Selecciona automáticamente columnas numéricas si no se especifican.
     """
 
-    def __init__(self, df, features=None, min_cluster_size=50, min_samples=None, metric='euclidean'):
+    def __init__(self, df, features=None, min_cluster_size=50, min_samples=5, metric='euclidean'):
         """
         Args:
             df (pd.DataFrame): DataFrame con las variables de entrada.
@@ -35,6 +35,7 @@ class HDBSCANModel:
                             if col not in ['paciente_id', 'timestamp', 'fase_ela', 'estado', 'empeoramiento']]
 
         self.features = features if features else default_features
+
 
         # Filtrar solo las features relevantes
         self.df = self.df[self.features]
@@ -152,7 +153,7 @@ class HDBSCANModel:
             alpha=0.7
         )
         plt.title(f"Clusters HDBSCAN: {x_feature} vs {y_feature}")
-        plt.legend(title="Cluster")
+        plt.legend().remove()
         plt.show()
 
     def plot_outlier_scores(self):
