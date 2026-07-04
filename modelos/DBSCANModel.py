@@ -20,7 +20,7 @@ class DBSCANModel:
     - Permite ajustar parámetros como eps y min_samples.
     """
 
-    def __init__(self, df, features=None, k=5, eps=None, min_samples=14):
+    def __init__(self, df, features=None, k=5, eps=None, min_samples=14, metric='cosine'):
         """
         Args:
             df (pd.DataFrame): DataFrame con las variables de entrada.
