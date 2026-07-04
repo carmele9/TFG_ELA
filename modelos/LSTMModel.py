@@ -150,7 +150,7 @@ class LSTMModel:
             'confusion_matrix': cm
         }
 
-    def save_model(self, path="modelos/lstm_model.keras"):
+    def save_model(self, path="../modelos/lstm_model.keras"):
         """
         Guarda el modelo LSTM entrenado en el disco.
         Args:
@@ -162,7 +162,7 @@ class LSTMModel:
             self.model.save(path)
             print(f"Modelo guardado en: {path}")
 
-    def load_model(self, path="modelos/lstm_model.keras"):
+    def load_model(self, path="../modelos/lstm_model.keras"):
         """
         Carga un modelo LSTM previamente guardado desde el disco.
         Args:
