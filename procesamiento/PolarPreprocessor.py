@@ -1,6 +1,7 @@
 import polars as pl
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler, LabelEncoder
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.impute import SimpleImputer
 
 
@@ -71,14 +72,14 @@ class PolarsPreprocessor:
 
     def encode_categoricals(self):
         """Codifica variables categóricas como 'fase_sueno' y 'estado'."""
-        if 'fase_sueno' in self.df.columns:
-            fase = self.df['fase_sueno'].fill_null('desconocida').to_list()
-            encoded = self.label_encoder.fit_transform(fase)
-            self.df = self.df.with_columns(pl.Series(name='fase_sueno', values=encoded))
-        if 'estado' in self.df.columns:
-            estado = self.df['estado'].to_list()
-            encoded = self.label_encoder.fit_transform(estado)
-            self.df = self.df.with_columns(pl.Series(name='estado', values=encoded))
+        self.df = (
+            self.df
+            .with_columns(
+                pl.col("fase_sueno").fill_null("desconocida"),
+                pl.col("estado").fill_null("desconocido")
+            )
+            .to_dummies(columns=["fase_sueno", "estado"])
+        )
 
     def scale_features(self):
         """Escala columnas numéricas entre 0 y 1, excluyendo variables categóricas e IDs."""

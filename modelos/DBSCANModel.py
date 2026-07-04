@@ -20,7 +20,7 @@ class DBSCANModel:
     - Permite ajustar parámetros como eps y min_samples.
     """
 
-    def __init__(self, df, features=None, k=9, eps=None, min_samples=50):
+    def __init__(self, df, features=None, k=9, eps=None, min_samples=14):
         """
         Args:
             df (pd.DataFrame): DataFrame con las variables de entrada.
@@ -33,11 +33,15 @@ class DBSCANModel:
         self.all_columns = df.columns.tolist()
 
         # Selección automática de columnas numéricas excluyendo columnas irrelevantes
-        default_features = df.select_dtypes(include=[np.number]).columns.tolist()
-        default_features = [col for col in default_features
-                            if col not in ['paciente_id', 'timestamp', 'fase_ela', 'estado', 'empeoramiento']]
-
-        self.features = features if features else default_features
+        # Variables fisiológicas relevantes para detectar anomalías
+        self.features = [
+            'aceleracion_x', 'aceleracion_y', 'aceleracion_z',
+            'magnitud_movimiento', 'actividad_estimada',
+            'spo2', 'frecuencia_cardiaca', 'pulsatility_index',
+            'senal_respiratoria', 'frecuencia_respiratoria',
+            'variabilidad_respiratoria', 'amplitud_instante',
+            'senal_sueno'
+        ]
 
         # Guardar subset de features numéricas
         self.df = self.df[self.features]

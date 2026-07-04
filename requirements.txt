@@ -1,0 +1,15 @@
+pandas
+polars
+scikit-learn
+hdbscan
+plotly
+nbformat
+matplotlib
+seaborn
+numpy
+tensorflow
+tqdm
+kneed
+ipykernel
+memory_profiler
+pyarrow

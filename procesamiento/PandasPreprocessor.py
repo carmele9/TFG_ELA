@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler, LabelEncoder
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.impute import SimpleImputer
 
 
@@ -59,11 +60,34 @@ class PandasPreprocessor:
 
     def encode_categoricals(self):
         """Codifica variables categóricas como 'fase_sueno' y 'estado'."""
+
+        self.onehot_encoder = OneHotEncoder(
+            sparse_output=False,
+            handle_unknown="ignore"
+        )
+        columnas = []
+
         if 'fase_sueno' in self.df.columns:
             self.df['fase_sueno'] = self.df['fase_sueno'].fillna('desconocida')
-            self.df['fase_sueno'] = self.label_encoder.fit_transform(self.df['fase_sueno'])
+            columnas.append('fase_sueno')
+
         if 'estado' in self.df.columns:
-            self.df['estado'] = self.label_encoder.fit_transform(self.df['estado'])
+            self.df['estado'] = self.df['estado'].fillna('desconocido')
+            columnas.append('estado')
+
+        if columnas:
+            encoded = self.onehot_encoder.fit_transform(self.df[columnas])
+
+            encoded_df = pd.DataFrame(
+                encoded,
+                columns=self.onehot_encoder.get_feature_names_out(columnas),
+                index=self.df.index
+            )
+
+            self.df = pd.concat(
+                [self.df.drop(columns=columnas), encoded_df],
+                axis=1
+            )
 
     def scale_features(self):
         """Escala variables numéricas entre 0 y 1."""
